@@ -11,10 +11,10 @@ import (
 	"net"
 	"os"
 
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/stathat"
 
-	"github.com/janeczku/go-dnsmasq/server"
+	"github.com/christofchen/go-dnsmasq/server"
 )
 
 var (
