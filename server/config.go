@@ -55,6 +55,9 @@ type Config struct {
 
 	// Stub zones support. Map contains domainname -> nameserver:port
 	Stub *map[string][]string
+
+	// mask/replace incoming NS records with this set of NS records
+	MasqNS []string `json:"masq_ns,omitempty"`
 }
 
 func ResolvConf(config *Config, ctx *cli.Context) error {

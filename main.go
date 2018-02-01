@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	logrus_syslog "github.com/Sirupsen/logrus/hooks/syslog"
 	"github.com/codegangsta/cli"
 	"github.com/miekg/dns"
+	log "github.com/sirupsen/logrus"
+	logrus_syslog "github.com/sirupsen/logrus/hooks/syslog"
 
 	"github.com/christofchen/go-dnsmasq/hostsfile"
 	"github.com/christofchen/go-dnsmasq/resolvconf"
@@ -33,6 +33,7 @@ var Version = "dev"
 var (
 	nameservers   = []string{}
 	searchDomains = []string{}
+	masqNS        = []string{}
 	hostPort      = ""
 	listen        = ""
 )
@@ -90,6 +91,12 @@ func main() {
 			Value:  "",
 			Usage:  "List of search domains <domain[,domain]> (supersedes resolv.conf)",
 			EnvVar: "DNSMASQ_SEARCH_DOMAINS,DNSMASQ_SEARCH,", // deprecated DNSMASQ_SEARCH
+		},
+		cli.StringFlag{
+			Name:   "masq-ns, m",
+			Value:  "",
+			Usage:  "List of nameserver FQDNs <domain[,domain]>",
+			EnvVar: "DNSMASQ_MASQ_NS",
 		},
 		cli.BoolFlag{ // deprecated
 			Name:   "append-search-domains, a",
@@ -222,6 +229,17 @@ func main() {
 			}
 		}
 
+		if mn := c.String("masq-ns"); mn != "" {
+			for _, domain := range strings.Split(mn, ",") {
+				if dns.CountLabel(domain) < 2 {
+					log.Fatalf("Masq NS must have at least one dot in name: %s", domain)
+				}
+				domain = strings.TrimSpace(domain)
+				domain = dns.Fqdn(strings.ToLower(domain))
+				masqNS = append(masqNS, domain)
+			}
+		}
+
 		listen = c.String("listen")
 		if strings.HasSuffix(listen, "]") {
 			listen += ":53"
@@ -250,6 +268,7 @@ func main() {
 			RCache:          c.Int("rcache"),
 			RCacheTtl:       c.Int("rcache-ttl"),
 			Verbose:         c.Bool("verbose"),
+			MasqNS:          masqNS,
 		}
 
 		resolvconf.Clean()
