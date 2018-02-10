@@ -63,7 +63,11 @@ func (s *server) ServeDNSForward(w dns.ResponseWriter, req *dns.Msg) *dns.Msg {
 					req.Id, dns.RcodeToString[absoluteRes.Rcode])
 				absoluteRes.Compress = true
 				absoluteRes.Id = req.Id
+				log.Debugf("[%d] Fake forwarding authority...", req.Id)
 				absoluteRes.Authoritative = true
+
+				absoluteRes = s.MasqNs(absoluteRes)
+
 				writeMsg(w, absoluteRes)
 				return absoluteRes
 			}

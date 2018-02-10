@@ -316,11 +316,12 @@ func main() {
 			config.Stub = &stubmap
 		}
 
-		log.Infof("Starting go-dnsmasq server %s", Version)
+		log.Infof("Starting go-dnsmasq-cc server %s", Version)
 		log.Infof("Nameservers: %v", config.Nameservers)
 		if config.EnableSearch {
 			log.Infof("Search domains: %v", config.SearchDomains)
 		}
+		log.Infof("Masq-NS: %v", config.MasqNS)
 
 		hf, err := hosts.NewHostsfile(config.Hostsfile, &hosts.Config{
 			Poll:    config.PollInterval,

@@ -198,6 +198,13 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			s.RoundRobin(m1.Answer)
 		}
 
+		// WIP
+
+		// if the answer contains a NS record, replace it...
+		m1 = s.MasqNs(m1)
+
+		// WIP
+
 		if err := w.WriteMsg(m1); err != nil {
 			log.Errorf("Failed to return reply %q", err)
 		}
@@ -227,6 +234,11 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				Fit(m, int(bufsize), tcp)
 			}
 			s.rcache.InsertMessage(cache.Key(q, dnssec, tcp), m)
+
+			log.Debugf("[%d] deferred processing", m.Id)
+			// WIP
+			m = s.MasqNs(m)
+			// WIP
 
 			if err := w.WriteMsg(m); err != nil {
 				log.Errorf("Failed to return reply %q", err)
@@ -287,6 +299,54 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	if resp != nil {
 		s.rcache.InsertMessage(cache.Key(q, dnssec, tcp), resp)
 	}
+
+}
+
+// MasqNs replaces NS in all sections
+func (s *server) MasqNs(msg *dns.Msg) *dns.Msg {
+	if mncount := len(s.config.MasqNS); mncount > 0 {
+		var fakens []dns.RR
+		var ns dns.RR
+		//log.Debugf("[%d] faking the NS set for %v", req.Id, m1)
+
+		for pos, mn := range s.config.MasqNS {
+			log.Debugf("[%d] initialize Masq NS[%d] to %v", msg.Id, pos, mn)
+			ns, _ = dns.NewRR(msg.Question[0].Name + " 3600 IN NS " + mn)
+			fakens = append(fakens, ns)
+		}
+
+		//fmt.Printf("[%d] masq completed %v\n", req.Id, newAnswer)
+
+		msg.Answer = MasqNsInSection(&msg.Answer, &fakens)
+		msg.Ns = MasqNsInSection(&msg.Ns, &fakens)
+
+		log.Debugf("[%d] Fake cached authority...", msg.Id)
+		msg.Authoritative = true
+
+	}
+	return msg
+}
+
+// MasqNsInSection replace NS records in section if Masq NS is set
+func MasqNsInSection(section *[]dns.RR, fakens *[]dns.RR) (answer []dns.RR) {
+	replaced := false
+	for pos, a := range *section {
+
+		if _, ok := a.(*dns.NS); ok {
+			// do something with t.NS
+			if !replaced {
+				//fmt.Printf(" replace %v with %v\n", t, fakens)
+				answer = append(answer, *fakens...)
+				replaced = true
+			} else {
+				//fmt.Printf(" need to remove masqued rr (%d) %v\n", pos, t)
+			}
+		} else {
+			// not NS
+			answer = append(answer, (*section)[pos])
+		}
+	}
+	return answer
 
 }
 
