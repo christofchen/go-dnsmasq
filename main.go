@@ -154,6 +154,11 @@ func main() {
 			EnvVar: "DNSMASQ_VERBOSE",
 		},
 		cli.BoolFlag{
+			Name:   "debug",
+			Usage:  "Enable debug logging",
+			EnvVar: "DNSMASQ_DEBUG",
+		},
+		cli.BoolFlag{
 			Name:   "syslog",
 			Usage:  "Enable syslog logging",
 			EnvVar: "DNSMASQ_SYSLOG",
@@ -187,6 +192,10 @@ func main() {
 		}
 
 		if c.Bool("verbose") {
+			log.SetLevel(log.InfoLevel)
+		}
+
+		if c.Bool("debug") {
 			log.SetLevel(log.DebugLevel)
 		}
 

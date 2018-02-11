@@ -63,11 +63,9 @@ func (s *server) ServeDNSForward(w dns.ResponseWriter, req *dns.Msg) *dns.Msg {
 					req.Id, dns.RcodeToString[absoluteRes.Rcode])
 				absoluteRes.Compress = true
 				absoluteRes.Id = req.Id
-				log.Debugf("[%d] Fake forwarding authority...", req.Id)
-				absoluteRes.Authoritative = true
-
 				absoluteRes = s.MasqNs(absoluteRes)
 
+				log.Infof("[%d] Send fwd '%s' answer: %v", req.Id, dns.RcodeToString[absoluteRes.Rcode], absoluteRes.Answer)
 				writeMsg(w, absoluteRes)
 				return absoluteRes
 			}
@@ -274,6 +272,13 @@ func (s *server) forwardQuery(req *dns.Msg, tcp bool) (*dns.Msg, error) {
 			case dns.RcodeNotImplemented:
 				return r, err
 			}
+		}
+
+		if tcp == false && err.Error() == "dns: failed to unpack truncated message" {
+			log.Debugf("[%d] Truncation detected, retry with TCP", req.Id)
+			tcp = true
+			try--
+			continue //
 		}
 
 		if err != nil {

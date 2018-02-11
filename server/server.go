@@ -143,6 +143,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	dnssec := false
 	tcp := false
 	local := true
+	protocol := "UDP"
 
 	q := req.Question[0]
 	name := strings.ToLower(q.Name)
@@ -169,6 +170,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	// with TCP we can send 64K
 	if tcp = isTCP(w); tcp {
 		bufsize = dns.MaxMsgSize - 1
+		protocol = "TCP"
 	}
 
 	StatsRequestCount.Inc(1)
@@ -177,7 +179,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		StatsDnssecOkCount.Inc(1)
 	}
 
-	log.Debugf("[%d] Got query for '%s %s' from %s", req.Id, dns.TypeToString[q.Qtype], q.Name, w.RemoteAddr().String())
+	log.Infof("[%d] Got %s query for '%s %s' from %s", req.Id, protocol, dns.TypeToString[q.Qtype], q.Name, w.RemoteAddr().String())
 
 	// Check cache first.
 	m1 := s.rcache.Hit(q, dnssec, tcp, m.Id)
@@ -204,7 +206,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		m1 = s.MasqNs(m1)
 
 		// WIP
-
+		log.Infof("[%d] Send cached '%s' answer: %v", req.Id, dns.RcodeToString[m1.Rcode], m1.Answer)
 		if err := w.WriteMsg(m1); err != nil {
 			log.Errorf("Failed to return reply %q", err)
 		}
@@ -320,7 +322,7 @@ func (s *server) MasqNs(msg *dns.Msg) *dns.Msg {
 		msg.Answer = MasqNsInSection(&msg.Answer, &fakens)
 		msg.Ns = MasqNsInSection(&msg.Ns, &fakens)
 
-		log.Debugf("[%d] Fake cached authority...", msg.Id)
+		log.Debugf("[%d] Fake authority...", msg.Id)
 		msg.Authoritative = true
 
 	}
