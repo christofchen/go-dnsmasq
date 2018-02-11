@@ -179,7 +179,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		StatsDnssecOkCount.Inc(1)
 	}
 
-	log.Infof("[%d] Got %s query for '%s %s' from %s", req.Id, protocol, dns.TypeToString[q.Qtype], q.Name, w.RemoteAddr().String())
+	log.Debugf("[%d] Got %s query for '%s %s' from %s", req.Id, protocol, dns.TypeToString[q.Qtype], q.Name, w.RemoteAddr().String())
 
 	// Check cache first.
 	m1 := s.rcache.Hit(q, dnssec, tcp, m.Id)
@@ -206,7 +206,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		m1 = s.MasqNs(m1)
 
 		// WIP
-		log.Infof("[%d] Send cached '%s' answer: %v", req.Id, dns.RcodeToString[m1.Rcode], m1.Answer)
+		log.Debugf("[%d] Send to %s cached %s answer: %v", req.Id, w.RemoteAddr().String(), dns.RcodeToString[m1.Rcode], m1.Answer)
 		if err := w.WriteMsg(m1); err != nil {
 			log.Errorf("Failed to return reply %q", err)
 		}
@@ -241,7 +241,7 @@ func (s *server) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			// WIP
 			m = s.MasqNs(m)
 			// WIP
-
+			log.Debugf("[%d] Send to %s '%s' answer: %v", req.Id, w.RemoteAddr().String(), dns.RcodeToString[m.Rcode], m.Answer)
 			if err := w.WriteMsg(m); err != nil {
 				log.Errorf("Failed to return reply %q", err)
 			}
@@ -309,18 +309,24 @@ func (s *server) MasqNs(msg *dns.Msg) *dns.Msg {
 	if mncount := len(s.config.MasqNS); mncount > 0 {
 		var fakens []dns.RR
 		var ns dns.RR
+		var replaced bool
 		//log.Debugf("[%d] faking the NS set for %v", req.Id, m1)
 
-		for pos, mn := range s.config.MasqNS {
-			log.Debugf("[%d] initialize Masq NS[%d] to %v", msg.Id, pos, mn)
+		for _, mn := range s.config.MasqNS {
+			//log.Debugf("[%d] initialize Masq NS[%d] to %v", msg.Id, pos, mn)
 			ns, _ = dns.NewRR(msg.Question[0].Name + " 3600 IN NS " + mn)
 			fakens = append(fakens, ns)
 		}
 
-		//fmt.Printf("[%d] masq completed %v\n", req.Id, newAnswer)
+		msg.Answer, replaced = MasqNsInSection(&msg.Answer, &fakens)
+		if replaced {
+			log.Debugf("[%d] masked NS in Answer section", msg.Id)
+		}
 
-		msg.Answer = MasqNsInSection(&msg.Answer, &fakens)
-		msg.Ns = MasqNsInSection(&msg.Ns, &fakens)
+		msg.Ns, replaced = MasqNsInSection(&msg.Ns, &fakens)
+		if replaced {
+			log.Debugf("[%d] masked NS in Additional section", msg.Id)
+		}
 
 		log.Debugf("[%d] Fake authority...", msg.Id)
 		msg.Authoritative = true
@@ -330,8 +336,8 @@ func (s *server) MasqNs(msg *dns.Msg) *dns.Msg {
 }
 
 // MasqNsInSection replace NS records in section if Masq NS is set
-func MasqNsInSection(section *[]dns.RR, fakens *[]dns.RR) (answer []dns.RR) {
-	replaced := false
+func MasqNsInSection(section *([]dns.RR), fakens *([]dns.RR)) (answer []dns.RR, replaced bool) {
+	replaced = false
 	for pos, a := range *section {
 
 		if _, ok := a.(*dns.NS); ok {
@@ -348,7 +354,7 @@ func MasqNsInSection(section *[]dns.RR, fakens *[]dns.RR) (answer []dns.RR) {
 			answer = append(answer, (*section)[pos])
 		}
 	}
-	return answer
+	return answer, replaced
 
 }
 

@@ -65,7 +65,7 @@ func (s *server) ServeDNSForward(w dns.ResponseWriter, req *dns.Msg) *dns.Msg {
 				absoluteRes.Id = req.Id
 				absoluteRes = s.MasqNs(absoluteRes)
 
-				log.Infof("[%d] Send fwd '%s' answer: %v", req.Id, dns.RcodeToString[absoluteRes.Rcode], absoluteRes.Answer)
+				log.Debugf("[%d] Send to %s abs '%s' answer: %v", req.Id, w.RemoteAddr().String(), dns.RcodeToString[absoluteRes.Rcode], absoluteRes.Answer)
 				writeMsg(w, absoluteRes)
 				return absoluteRes
 			}
@@ -111,6 +111,8 @@ func (s *server) ServeDNSForward(w dns.ResponseWriter, req *dns.Msg) *dns.Msg {
 					req.Id, dns.RcodeToString[absoluteRes.Rcode])
 				absoluteRes.Compress = true
 				absoluteRes.Id = req.Id
+				absoluteRes = s.MasqNs(absoluteRes)
+				log.Infof("[%d] Send to %s srch %s answer: %v", req.Id, w.RemoteAddr().String(), dns.RcodeToString[absoluteRes.Rcode], absoluteRes.Answer)
 				writeMsg(w, absoluteRes)
 				return absoluteRes
 			}

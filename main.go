@@ -332,6 +332,10 @@ func main() {
 		}
 		log.Infof("Masq-NS: %v", config.MasqNS)
 
+		for zone, srv := range *config.Stub {
+			log.Infof("Stub zone %s: %s", zone, srv)
+		}
+
 		hf, err := hosts.NewHostsfile(config.Hostsfile, &hosts.Config{
 			Poll:    config.PollInterval,
 			Verbose: config.Verbose,
