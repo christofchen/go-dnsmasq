@@ -276,14 +276,13 @@ func (s *server) forwardQuery(req *dns.Msg, tcp bool) (*dns.Msg, error) {
 			}
 		}
 
-		if tcp == false && err.Error() == "dns: failed to unpack truncated message" {
-			log.Debugf("[%d] Truncation detected, retry with TCP", req.Id)
-			tcp = true
-			try--
-			continue //
-		}
-
 		if err != nil {
+			if tcp == false && err.Error() == "dns: failed to unpack truncated message" {
+				log.Debugf("[%d] Truncation detected, retry with TCP", req.Id)
+				tcp = true
+				try--
+				continue //
+			}
 			log.Debugf("[%d] Failed to query upstream %s for qname '%s': %v",
 				req.Id, nservers[nsIdx], req.Question[0].Name, err)
 		}
